@@ -1,0 +1,41 @@
+use wasmer_runtime::{imports, instantiate, Value};
+
+pub fn run_wasm(bytecode: &[u8]) -> Vec<Value> {
+    let import_object = imports! {};
+    let instance = instantiate(bytecode, &import_object).unwrap();
+    instance.call("add_one", &[Value::I32(42)]).unwrap()
+}
+
+pub fn run_wat(source: &[u8]) -> Vec<Value> {
+    let bytecode = wabt::wat2wasm(source).unwrap();
+    run_wasm(&bytecode)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wasm() {
+        let bytecode: &[u8] = &[
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60, 0x01, 0x7f,
+            0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x0b, 0x01, 0x07, 0x61, 0x64, 0x64, 0x5f,
+            0x6f, 0x6e, 0x65, 0x00, 0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x41, 0x01,
+            0x6a, 0x0b, 0x00, 0x1a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x0a, 0x01, 0x00, 0x07,
+            0x61, 0x64, 0x64, 0x5f, 0x6f, 0x6e, 0x65, 0x02, 0x07, 0x01, 0x00, 0x01, 0x00, 0x02,
+            0x70, 0x30,
+        ];
+        assert_eq!(run_wasm(bytecode)[0], Value::I32(43))
+    }
+
+    #[test]
+    fn wat() {
+        let source = "(module
+            (type $t0 (func (param i32) (result i32)))
+            (func $add_one (export \"add_one\") (type $t0) (param $p0 i32) (result i32)
+                get_local $p0
+                i32.const 1
+                i32.add))";
+        assert_eq!(run_wat(source.as_bytes())[0], Value::I32(43))
+    }
+}
